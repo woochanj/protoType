@@ -6,7 +6,6 @@
 
 import pygame
 import sys
-import time
 from src.player import Choice
 from src.game_manager import GameManager, GameState
 from src.ui import UI
@@ -114,7 +113,6 @@ class PsychologicalRPS:
     
     def update(self):
         """게임 업데이트"""
-        # 게임 상태에 따른 추가 업데이트 로직
         pass
     
     def draw(self):

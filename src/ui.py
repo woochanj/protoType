@@ -232,6 +232,13 @@ class UI:
         title = render_text_safe(self.title_font, f"라운드 {game_manager.round_number}", self.WHITE)
         screen.blit(title, (300, 30))
         
+        # 데미지 배분 정보 표시
+        damage_info = game_manager.player.get_damage_allocation_tuple()
+        damage_text = render_text_safe(self.small_font, f"데미지 배분: 가위 {damage_info[0]} | 바위 {damage_info[1]} | 보 {damage_info[2]}", self.YELLOW)
+        screen.blit(damage_text, (50, 80))
+        
+
+        
         # 플레이어들 그리기
         game_manager.player.draw(screen)
         game_manager.computer.draw(screen)
@@ -246,6 +253,26 @@ class UI:
         if game_manager.player.get_choice():
             choice_text = render_text_safe(self.font, "선택 완료! 컴퓨터가 선택 중...", self.YELLOW)
             screen.blit(choice_text, (250, 400))
+            
+            # 특수 능력 상태 표시
+            if game_manager.player.special_ability_active:
+                ability_text = render_text_safe(self.small_font, f"특수 능력 활성화! (연속 {game_manager.player.consecutive_choices}회)", self.GREEN)
+                screen.blit(ability_text, (50, 480))
+            
+            # 연속 보너스 상태 표시
+            if game_manager.player.consecutive_wins >= 3:
+                bonus_text = render_text_safe(self.small_font, f"연속 승리 보너스! ({game_manager.player.consecutive_wins}연속)", self.YELLOW)
+                screen.blit(bonus_text, (50, 510))
+            elif game_manager.player.consecutive_losses >= 3:
+                bonus_text = render_text_safe(self.small_font, f"연속 패배 보너스! 다음 승리 시 2배 데미지", self.RED)
+                screen.blit(bonus_text, (50, 510))
+            
+            # AI 분석 메시지 표시
+            if hasattr(game_manager.computer, 'get_analysis_message'):
+                analysis_msg = game_manager.computer.get_analysis_message()
+                if analysis_msg:
+                    analysis_text = render_text_safe(self.small_font, f"AI 분석: {analysis_msg}", self.BLUE)
+                    screen.blit(analysis_text, (50, 450))
     
     def draw_result_screen(self, screen, game_manager):
         """결과 화면 그리기"""
@@ -260,6 +287,11 @@ class UI:
         
         screen.blit(title, (300, 100))
         
+        # 데미지 배분 정보 표시
+        damage_info = game_manager.player.get_damage_allocation_tuple()
+        damage_text = render_text_safe(self.small_font, f"데미지 배분: 가위 {damage_info[0]} | 바위 {damage_info[1]} | 보 {damage_info[2]}", self.YELLOW)
+        screen.blit(damage_text, (50, 50))
+        
         # 선택 표시
         player_choice = render_text_safe(self.font, f"플레이어: {result['player_choice'].value}", self.WHITE)
         computer_choice = render_text_safe(self.font, f"컴퓨터: {result['computer_choice'].value}", self.WHITE)
@@ -271,6 +303,21 @@ class UI:
         if result['damage'] > 0:
             damage_text = render_text_safe(self.font, f"데미지: {result['damage']}", self.RED)
             screen.blit(damage_text, (300, 250))
+            
+            # 특수 능력 데미지 표시
+            winner = result['winner']
+            if winner and winner.special_ability_active:
+                ability_damage_text = render_text_safe(self.small_font, "특수 능력으로 데미지 증가!", self.GREEN)
+                screen.blit(ability_damage_text, (300, 280))
+            
+            # 연속 보너스 데미지 표시
+            if winner:
+                if winner.consecutive_wins >= 3:
+                    bonus_damage_text = render_text_safe(self.small_font, "연속 승리 보너스로 데미지 증가!", self.YELLOW)
+                    screen.blit(bonus_damage_text, (300, 310))
+                elif winner.consecutive_losses >= 3:
+                    bonus_damage_text = render_text_safe(self.small_font, "연속 패배 보너스로 데미지 증가!", self.RED)
+                    screen.blit(bonus_damage_text, (300, 310))
         
         # 다음 라운드 버튼
         self.next_round_button.draw(screen)
@@ -285,7 +332,12 @@ class UI:
         else:
             title = render_text_safe(self.title_font, "게임 오버!", self.RED)
         
-        screen.blit(title, (300, 200))
+        screen.blit(title, (300, 150))
+        
+        # 데미지 배분 정보 표시
+        damage_info = game_manager.player.get_damage_allocation_tuple()
+        damage_text = render_text_safe(self.small_font, f"데미지 배분: 가위 {damage_info[0]} | 바위 {damage_info[1]} | 보 {damage_info[2]}", self.YELLOW)
+        screen.blit(damage_text, (50, 50))
         
         # 재시작 버튼
         self.restart_button.draw(screen)

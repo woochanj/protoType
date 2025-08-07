@@ -9,6 +9,7 @@ import random
 from typing import Tuple, Optional
 from enum import Enum
 from .player import Player, Choice
+from .ai_player import AIPlayer
 from .font_utils import get_korean_font
 
 class GameState(Enum):
@@ -22,7 +23,7 @@ class GameManager:
         """게임 매니저 초기화"""
         self.state = GameState.SETUP
         self.player = Player("플레이어", 50, 100)
-        self.computer = Player("컴퓨터", 550, 100)
+        self.computer = AIPlayer("컴퓨터", 550, 100)
         
         # 라운드 정보
         self.round_number = 1
@@ -70,7 +71,18 @@ class GameManager:
     
     def calculate_damage(self, winner: Player, choice: Choice) -> int:
         """데미지 계산"""
-        return winner.damage_allocation[choice]
+        base_damage = winner.damage_allocation[choice]
+        
+        # 특수 능력 적용
+        special_multiplier = winner.get_special_ability_damage_multiplier()
+        
+        # 연속 보너스 적용
+        bonus_multiplier = winner.get_bonus_damage_multiplier()
+        
+        # 최종 데미지 계산
+        final_damage = int(base_damage * special_multiplier * bonus_multiplier)
+        
+        return final_damage
     
     def process_round(self):
         """라운드 처리"""
@@ -80,15 +92,35 @@ class GameManager:
         if player_choice is None or computer_choice is None:
             return
         
+        # AI가 플레이어 선택 기록
+        self.computer.record_player_choice(player_choice)
+        self.computer.record_ai_choice(computer_choice)
+        
         winner = self.get_winner(player_choice, computer_choice)
         
         if winner:
             damage = self.calculate_damage(winner, winner.get_choice())
             loser = self.computer if winner == self.player else self.player
+            
+            # 바위 특수 능력 적용 (승리한 플레이어가 바위를 선택했을 때)
+            if winner.get_choice() == Choice.ROCK and winner.special_ability_active:
+                winner.apply_rock_special_ability()
+            
+            # 연속 보너스 적용
+            winner.record_win()
+            loser.record_loss()
+            
+            # 보너스 데미지 사용 후 리셋
+            if winner.bonus_damage > 0:
+                winner.reset_bonus_damage()
+            
             loser.take_damage(damage)
             self.round_damage = damage
         else:
             self.round_damage = 0
+        
+        # AI가 라운드 결과 기록
+        self.computer.record_round_result(player_choice, computer_choice, winner)
         
         self.round_result = {
             'player_choice': player_choice,
@@ -124,9 +156,8 @@ class GameManager:
     
     def computer_choose(self):
         """컴퓨터 선택"""
-        # 간단한 AI: 랜덤 선택
-        choices = [Choice.SCISSORS, Choice.ROCK, Choice.PAPER]
-        choice = random.choice(choices)
+        # AI 패턴 분석 기반 선택
+        choice = self.computer.make_choice()
         self.computer.set_choice(choice)
     
     def get_state(self) -> GameState:

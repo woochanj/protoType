@@ -177,6 +177,13 @@ class UI:
     
     def setup_buttons(self):
         """버튼 설정"""
+        # 모드 선택 버튼
+        self.practice_button = Button(250, 250, 120, 60, "연습모드", (0, 100, 200))
+        self.story_button = Button(430, 250, 120, 60, "스토리모드", (200, 100, 0))
+        
+        # 홈으로 돌아가기 버튼
+        self.home_button = Button(650, 50, 100, 40, "홈으로", (100, 100, 100))
+        
         # 데미지 배분 버튼
         self.confirm_button = Button(350, 400, 100, 40, "확인", (0, 100, 0))
         
@@ -190,6 +197,59 @@ class UI:
         
         # 게임 재시작 버튼
         self.restart_button = Button(350, 500, 100, 40, "재시작", (100, 0, 0))
+    
+    def draw_mode_selection_screen(self, screen):
+        """모드 선택 화면 그리기"""
+        # 제목
+        title = render_text_safe(self.title_font, "심리전 가위바위보", self.WHITE)
+        screen.blit(title, (200, 100))
+        
+        # 부제목
+        subtitle = render_text_safe(self.font, "게임 모드를 선택하세요", self.WHITE)
+        screen.blit(subtitle, (250, 180))
+        
+        # 모드 선택 버튼들
+        self.practice_button.draw(screen)
+        self.story_button.draw(screen)
+        
+        # 모드 설명
+        practice_desc = render_text_safe(self.small_font, "AI와 자유롭게 대전", self.WHITE)
+        story_desc = render_text_safe(self.small_font, "스토리와 함께하는 모험", self.WHITE)
+        
+        screen.blit(practice_desc, (250, 320))
+        screen.blit(story_desc, (430, 320))
+        
+        # 홈으로 돌아가기 버튼
+        self.home_button.draw(screen)
+    
+    def draw_death_animation_screen(self, screen, game_manager):
+        """사망 애니메이션 화면 그리기"""
+        # 배경
+        screen.fill(self.BLACK)
+        
+        # 사망한 플레이어 정보
+        dead_player = game_manager.dead_player
+        dead_player_name = dead_player.name
+        
+        # 사망 메시지
+        death_text = render_text_safe(self.title_font, f"{dead_player_name} 사망!", self.RED)
+        screen.blit(death_text, (250, 200))
+        
+        # 체력바 파편들 그리기
+        for fragment in game_manager.health_bar_fragments:
+            pygame.draw.circle(screen, fragment['color'], 
+                             (int(fragment['x']), int(fragment['y'])), 
+                             fragment['size'])
+        
+        # 애니메이션 진행률에 따른 효과
+        progress = game_manager.get_animation_progress()
+        
+        if progress > 0.8:  # 애니메이션 마지막 부분에서 "-END-" 표시
+            end_text = render_text_safe(self.font, "-END-", self.WHITE)
+            screen.blit(end_text, (350, 300))
+        
+        # 홈으로 돌아가기 버튼 (애니메이션 중에도 사용 가능)
+        self.home_button.draw(screen)
     
     def draw_setup_screen(self, screen, player):
         """데미지 배분 화면 그리기"""
@@ -237,7 +297,8 @@ class UI:
         damage_text = render_text_safe(self.small_font, f"데미지 배분: 가위 {damage_info[0]} | 바위 {damage_info[1]} | 보 {damage_info[2]}", self.YELLOW)
         screen.blit(damage_text, (50, 80))
         
-
+        # 홈으로 돌아가기 버튼 (게임 화면에서도 표시)
+        self.home_button.draw(screen)
         
         # 플레이어들 그리기
         game_manager.player.draw(screen)
@@ -321,6 +382,9 @@ class UI:
         
         # 다음 라운드 버튼
         self.next_round_button.draw(screen)
+        
+        # 홈으로 돌아가기 버튼
+        self.home_button.draw(screen)
     
     def draw_game_over_screen(self, screen, game_manager):
         """게임 오버 화면 그리기"""
@@ -341,10 +405,16 @@ class UI:
         
         # 재시작 버튼
         self.restart_button.draw(screen)
+        
+        # 홈으로 돌아가기 버튼
+        self.home_button.draw(screen)
     
     def handle_mouse(self, pos: Tuple[int, int], click: bool) -> Optional[str]:
         """마우스 이벤트 처리"""
         # 모든 버튼의 호버 상태 업데이트
+        self.practice_button.handle_mouse(pos)
+        self.story_button.handle_mouse(pos)
+        self.home_button.handle_mouse(pos) # 홈으로 돌아가기 버튼 추가
         self.confirm_button.handle_mouse(pos)
         self.scissors_button.handle_mouse(pos)
         self.rock_button.handle_mouse(pos)
@@ -357,8 +427,14 @@ class UI:
         
         # 클릭 이벤트 처리
         if click:
-            if self.confirm_button.is_clicked(pos, click) and self.linked_sliders.is_valid():
+            if self.practice_button.is_clicked(pos, click):
+                return "select_practice"
+            elif self.story_button.is_clicked(pos, click):
+                return "select_story"
+            elif self.confirm_button.is_clicked(pos, click) and self.linked_sliders.is_valid():
                 return "confirm_setup"
+            elif self.home_button.is_clicked(pos, click):
+                return "home"
             elif self.scissors_button.is_clicked(pos, click):
                 return "choose_scissors"
             elif self.rock_button.is_clicked(pos, click):

@@ -7,7 +7,7 @@
 import pygame
 import sys
 from src.player import Choice
-from src.game_manager import GameManager, GameState
+from src.game_manager import GameManager, GameState, GameMode
 from src.ui import UI
 
 class PsychologicalRPS:
@@ -56,7 +56,13 @@ class PsychologicalRPS:
     
     def handle_action(self, action: str):
         """액션 처리"""
-        if action == "confirm_setup":
+        if action == "select_practice":
+            self.handle_mode_selection(GameMode.PRACTICE)
+        elif action == "select_story":
+            self.handle_mode_selection(GameMode.STORY)
+        elif action == "home":
+            self.handle_home()
+        elif action == "confirm_setup":
             self.handle_setup_confirmation()
         elif action == "choose_scissors":
             self.handle_choice(Choice.SCISSORS)
@@ -68,6 +74,25 @@ class PsychologicalRPS:
             self.handle_next_round()
         elif action == "restart":
             self.handle_restart()
+    
+    def handle_home(self):
+        """홈으로 돌아가기 처리"""
+        self.game_manager.go_home()
+        print("홈 화면으로 돌아갑니다.")
+    
+    def handle_mode_selection(self, mode: GameMode):
+        """모드 선택 처리"""
+        self.game_manager.set_game_mode(mode)
+        print(f"선택된 모드: {mode.value}")
+        
+        # 스토리 모드일 경우 추가 설정
+        if mode == GameMode.STORY:
+            print("스토리 모드: AI가 더 강해집니다!")
+            # 스토리 모드에서는 AI를 더 강하게 설정
+            self.game_manager.computer.set_difficulty(1.5)
+        else:
+            print("연습 모드: AI가 기본 난이도로 설정됩니다.")
+            self.game_manager.computer.set_difficulty(1.0)
     
     def handle_setup_confirmation(self):
         """데미지 배분 확인 처리"""
@@ -113,7 +138,9 @@ class PsychologicalRPS:
     
     def update(self):
         """게임 업데이트"""
-        pass
+        # 사망 애니메이션 업데이트
+        if self.game_manager.get_state() == GameState.DEATH_ANIMATION:
+            self.game_manager.update_death_animation()
     
     def draw(self):
         """화면 그리기"""
@@ -123,12 +150,16 @@ class PsychologicalRPS:
         # 게임 상태에 따른 화면 그리기
         state = self.game_manager.get_state()
         
-        if state == GameState.SETUP:
+        if state == GameState.MODE_SELECTION:
+            self.ui.draw_mode_selection_screen(self.screen)
+        elif state == GameState.SETUP:
             self.ui.draw_setup_screen(self.screen, self.game_manager.player)
         elif state == GameState.PLAYING:
             self.ui.draw_game_screen(self.screen, self.game_manager)
         elif state == GameState.ROUND_RESULT:
             self.ui.draw_result_screen(self.screen, self.game_manager)
+        elif state == GameState.DEATH_ANIMATION:
+            self.ui.draw_death_animation_screen(self.screen, self.game_manager)
         elif state == GameState.GAME_OVER:
             self.ui.draw_game_over_screen(self.screen, self.game_manager)
         

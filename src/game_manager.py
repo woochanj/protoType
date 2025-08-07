@@ -13,15 +13,22 @@ from .ai_player import AIPlayer
 from .font_utils import get_korean_font
 
 class GameState(Enum):
+    MODE_SELECTION = "모드 선택"
     SETUP = "데미지 배분"
     PLAYING = "게임 진행"
     ROUND_RESULT = "라운드 결과"
+    DEATH_ANIMATION = "사망 애니메이션"
     GAME_OVER = "게임 종료"
+
+class GameMode(Enum):
+    PRACTICE = "연습모드"
+    STORY = "스토리모드"
 
 class GameManager:
     def __init__(self):
         """게임 매니저 초기화"""
-        self.state = GameState.SETUP
+        self.state = GameState.MODE_SELECTION
+        self.game_mode = None
         self.player = Player("플레이어", 50, 100)
         self.computer = AIPlayer("컴퓨터", 550, 100)
         
@@ -29,6 +36,12 @@ class GameManager:
         self.round_number = 1
         self.round_result = None
         self.round_damage = 0
+        
+        # 애니메이션 관련 속성
+        self.animation_frame = 0
+        self.animation_duration = 120  # 2초 (60fps 기준)
+        self.dead_player = None  # 사망한 플레이어
+        self.health_bar_fragments = []  # 체력바 파편들
         
         # UI 요소 - 한글 폰트 사용
         self.font = get_korean_font(36)
@@ -44,6 +57,22 @@ class GameManager:
         
         # 컴퓨터 AI 설정
         self.setup_computer_damage()
+    
+    def set_game_mode(self, mode: GameMode):
+        """게임 모드 설정"""
+        self.game_mode = mode
+        self.state = GameState.SETUP
+        print(f"게임 모드 선택: {mode.value}")
+    
+    def get_game_mode(self) -> Optional[GameMode]:
+        """게임 모드 반환"""
+        return self.game_mode
+    
+    def go_home(self):
+        """홈 화면으로 돌아가기"""
+        self.state = GameState.MODE_SELECTION
+        self.game_mode = None
+        print("홈 화면으로 돌아갑니다.")
     
     def setup_computer_damage(self):
         """컴퓨터 데미지 배분 설정"""
@@ -129,7 +158,12 @@ class GameManager:
             'damage': self.round_damage
         }
         
-        self.state = GameState.ROUND_RESULT
+        # 체력이 0 이하가 되었는지 확인
+        if not self.player.is_alive() or not self.computer.is_alive():
+            dead_player = self.computer if not self.computer.is_alive() else self.player
+            self.start_death_animation(dead_player)
+        else:
+            self.state = GameState.ROUND_RESULT
     
     def next_round(self):
         """다음 라운드로 진행"""
@@ -142,7 +176,8 @@ class GameManager:
     def check_game_over(self) -> bool:
         """게임 종료 확인"""
         if not self.player.is_alive() or not self.computer.is_alive():
-            self.state = GameState.GAME_OVER
+            if self.state != GameState.DEATH_ANIMATION:  # 이미 애니메이션 중이면 무시
+                self.state = GameState.GAME_OVER
             return True
         return False
     
@@ -185,5 +220,54 @@ class GameManager:
         self.computer.reset_choice()
         self.round_number = 1
         self.round_result = None
-        self.state = GameState.SETUP
+        self.state = GameState.MODE_SELECTION
+        self.game_mode = None
         self.setup_computer_damage()
+
+    def start_death_animation(self, dead_player: Player):
+        """사망 애니메이션 시작"""
+        self.dead_player = dead_player
+        self.animation_frame = 0
+        self.state = GameState.DEATH_ANIMATION
+        self.create_health_bar_fragments()
+        print(f"{dead_player.name} 사망! 애니메이션 시작...")
+    
+    def create_health_bar_fragments(self):
+        """체력바 파편 생성"""
+        self.health_bar_fragments = []
+        # 체력바 위치에 파편들 생성
+        if self.dead_player == self.player:
+            base_x, base_y = 50, 100
+        else:
+            base_x, base_y = 550, 100
+        
+        # 여러 개의 파편 생성
+        for i in range(8):
+            fragment = {
+                'x': base_x + i * 10,
+                'y': base_y,
+                'vx': random.randint(-5, 5),
+                'vy': random.randint(-8, -2),
+                'size': random.randint(3, 8),
+                'color': self.RED
+            }
+            self.health_bar_fragments.append(fragment)
+    
+    def update_death_animation(self):
+        """사망 애니메이션 업데이트"""
+        self.animation_frame += 1
+        
+        # 파편들 업데이트
+        for fragment in self.health_bar_fragments:
+            fragment['x'] += fragment['vx']
+            fragment['y'] += fragment['vy']
+            fragment['vy'] += 0.3  # 중력 효과
+        
+        # 애니메이션 완료 확인
+        if self.animation_frame >= self.animation_duration:
+            self.state = GameState.GAME_OVER
+            print("애니메이션 완료! 게임 오버.")
+    
+    def get_animation_progress(self) -> float:
+        """애니메이션 진행률 반환 (0.0 ~ 1.0)"""
+        return min(1.0, self.animation_frame / self.animation_duration)
